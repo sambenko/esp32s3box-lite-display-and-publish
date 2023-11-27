@@ -26,10 +26,13 @@ use esp_box_ui::{
 // peripherals imports
 use hal::{
     clock::{ClockControl, CpuClock},
+    adc::{self, AdcConfig, Attenuation, ADC, ADC1},
+    dma::DmaPriority,
+    gdma::Gdma,
     i2c::I2C,
     spi::{
-        master::Spi, 
-        SpiMode
+        master::{prelude::*, Spi},
+        SpiMode,
     },
     peripherals::Peripherals,
     prelude::{_fugit_RateExtU32, *},
@@ -91,7 +94,7 @@ async fn main(spawner: Spawner) -> ! {
     let peripherals = Peripherals::take();
 
     let system = peripherals.SYSTEM.split();
-    let clocks = ClockControl::configure(system.clock_control, CpuClock::Clock240MHz).freeze();
+    let clocks = ClockControl::max(system.clock_control).freeze();
 
     let timer1 = TimerGroup::new(
         peripherals.TIMG1,
@@ -129,18 +132,17 @@ async fn main(spawner: Spawner) -> ! {
     
     let sclk = io.pins.gpio7;
     let mosi = io.pins.gpio6;
-    let miso = io.pins.gpio19;
+    // let miso = io.pins.gpio19;
     let cs = io.pins.gpio5;
 
     let dc = io.pins.gpio4.into_push_pull_output();
     let mut backlight = io.pins.gpio45.into_push_pull_output();
     let reset = io.pins.gpio48.into_push_pull_output();
 
-    let spi = Spi::new(
+    let spi = Spi::new_no_miso(
         peripherals.SPI2,
         sclk,
         mosi,
-        miso,
         cs,
         40u32.MHz(),
         SpiMode::Mode0,
@@ -184,6 +186,20 @@ async fn main(spawner: Spawner) -> ! {
     update_field(&mut display_struct.display, &sandwich);
     update_field(&mut display_struct.display, &energy_drink);
 
+    // Create ADC instances
+    let analog = peripherals.SENS.split();
+
+    let mut adc1_config = AdcConfig::new();
+
+    let atten = Attenuation::Attenuation11dB;
+
+    type AdcCal = adc::AdcCalCurve<ADC1>;
+
+    let pin = adc1_config.enable_pin_with_cal::<_, AdcCal>(io.pins.gpio1.into_analog(), atten);
+
+    let adc1 = ADC::<ADC1>::adc(analog.adc1, adc1_config).unwrap();
+
+    spawner.spawn(button_handling_task(adc1, pin)).ok();
     
     let i2c = I2C::new(
         peripherals.I2C0,
@@ -206,7 +222,6 @@ async fn main(spawner: Spawner) -> ! {
 
     spawner.spawn(connection(controller)).ok();
     spawner.spawn(net_task(&stack)).ok();
-
 
     let mut rx_buffer = [0; 4096];
     let mut tx_buffer = [0; 4096];
@@ -513,4 +528,28 @@ async fn net_task(stack: &'static Stack<WifiDevice<'static, WifiStaDevice>>) {
 
 pub async fn sleep(millis: u32) {
     Timer::after(Duration::from_millis(millis as u64)).await;
+}
+
+const LEFT_BUTTON_RANGE: (u16, u16) = (2680, 2720); // Range for left-most button
+const MIDDLE_BUTTON_RANGE: (u16, u16) = (2130, 2170); // Range for middle button
+const RIGHT_BUTTON_RANGE: (u16, u16) = (705, 745); // Range for right-most button
+
+
+#[embassy_executor::task]
+async fn button_handling_task(mut adc1: ADC<'static, ADC1>, mut pin: adc::AdcPin<hal::gpio::GpioPin<hal::gpio::Analog, 1>, ADC1, adc::AdcCalCurve<ADC1>>) {
+    loop {
+        let pin_mv = nb::block!(adc1.read(&mut pin)).unwrap();
+
+        if (LEFT_BUTTON_RANGE.0..=LEFT_BUTTON_RANGE.1).contains(&pin_mv) {
+            println!("Left button pressed")
+            
+        } else if (MIDDLE_BUTTON_RANGE.0..=MIDDLE_BUTTON_RANGE.1).contains(&pin_mv) {
+            println!("Middle button pressed")
+            
+        } else if (RIGHT_BUTTON_RANGE.0..=RIGHT_BUTTON_RANGE.1).contains(&pin_mv) {
+            println!("Right button pressed")
+        }
+
+        sleep(100).await; // Adjust the sleep duration as needed
+    }
 }
