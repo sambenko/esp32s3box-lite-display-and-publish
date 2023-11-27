@@ -10,8 +10,11 @@ use hal::{
 use mipidsi::models::ST7789;
 use embedded_graphics::{prelude::{DrawTarget, Dimensions}, pixelcolor::Rgb565, Pixel, primitives::Rectangle};
 
+type dc = GpioPin<Output<PushPull>, 4>;
+type reset = GpioPin<Output<PushPull>, 48>;
+
 pub struct EmbassyTaskDisplay<'a> {
-    pub display: mipidsi::Display<SPIInterfaceNoCS<Spi<'a, SPI2, FullDuplexMode>, GpioPin<Output<PushPull>, 4>>, ST7789, GpioPin<Output<PushPull>, 48>>,
+    pub display: mipidsi::Display<SPIInterfaceNoCS<Spi<'a, SPI2, FullDuplexMode>, dc>, ST7789, reset>,
 }
 
 impl DrawTarget for EmbassyTaskDisplay<'static> {
