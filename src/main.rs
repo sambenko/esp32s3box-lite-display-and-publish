@@ -25,13 +25,11 @@ use esp_box_ui::{
 
 // peripherals imports
 use hal::{
-    clock::{ClockControl, CpuClock},
+    clock::ClockControl,
     adc::{self, AdcConfig, Attenuation, ADC, ADC1},
-    dma::DmaPriority,
-    gdma::Gdma,
     i2c::I2C,
     spi::{
-        master::{prelude::*, Spi},
+        master::Spi,
         SpiMode,
     },
     peripherals::Peripherals,
@@ -199,7 +197,7 @@ async fn main(spawner: Spawner) -> ! {
 
     let adc1 = ADC::<ADC1>::adc(analog.adc1, adc1_config).unwrap();
 
-    spawner.spawn(button_handling_task(adc1, pin)).ok();
+    spawner.spawn(button_handling_task(adc1, pin, display_struct)).ok();
     
     let i2c = I2C::new(
         peripherals.I2C0,
@@ -534,22 +532,43 @@ const LEFT_BUTTON_RANGE: (u16, u16) = (2680, 2720); // Range for left-most butto
 const MIDDLE_BUTTON_RANGE: (u16, u16) = (2130, 2170); // Range for middle button
 const RIGHT_BUTTON_RANGE: (u16, u16) = (705, 745); // Range for right-most button
 
-
 #[embassy_executor::task]
-async fn button_handling_task(mut adc1: ADC<'static, ADC1>, mut pin: adc::AdcPin<hal::gpio::GpioPin<hal::gpio::Analog, 1>, ADC1, adc::AdcCalCurve<ADC1>>) {
+async fn button_handling_task(mut adc1: ADC<'static, ADC1>, mut pin: adc::AdcPin<hal::gpio::GpioPin<hal::gpio::Analog, 1>, ADC1, adc::AdcCalCurve<ADC1>>,  mut display_struct: EmbassyTaskDisplay<'static>) {
+    let mut is_left_button_pressed = false;
+
     loop {
         let pin_mv = nb::block!(adc1.read(&mut pin)).unwrap();
-
         if (LEFT_BUTTON_RANGE.0..=LEFT_BUTTON_RANGE.1).contains(&pin_mv) {
-            println!("Left button pressed")
-            
-        } else if (MIDDLE_BUTTON_RANGE.0..=MIDDLE_BUTTON_RANGE.1).contains(&pin_mv) {
-            println!("Middle button pressed")
-            
-        } else if (RIGHT_BUTTON_RANGE.0..=RIGHT_BUTTON_RANGE.1).contains(&pin_mv) {
-            println!("Right button pressed")
+            if !is_left_button_pressed {
+                is_left_button_pressed = true;
+
+                let temperature_data = critical_section::with(|cs| TEMPERATURE_DATA.borrow(cs).borrow().clone());
+                let humidity_data = critical_section::with(|cs| HUMIDITY_DATA.borrow(cs).borrow().clone());
+                let pressure_data = critical_section::with(|cs| PRESSURE_DATA.borrow(cs).borrow().clone());
+
+                build_sensor_ui(&mut display_struct.display, &temperature_data, &humidity_data, &pressure_data);
+                update_sensor_data(&mut display_struct.display, &temperature_data);
+                update_sensor_data(&mut display_struct.display, &humidity_data);
+                update_sensor_data(&mut display_struct.display, &pressure_data);
+                
+            }
+        } else {
+            if is_left_button_pressed {
+                is_left_button_pressed = false;
+
+                display_struct.display.clear(Rgb565::WHITE).unwrap();
+
+                let hotdog = critical_section::with(|cs| HOTDOG.borrow(cs).borrow().clone());
+                let sandwich = critical_section::with(|cs| SANDWICH.borrow(cs).borrow().clone());
+                let energy_drink = critical_section::with(|cs| ENERGY_DRINK.borrow(cs).borrow().clone());
+
+                build_inventory(&mut display_struct.display, &hotdog, &sandwich, &energy_drink);
+                update_field(&mut display_struct.display, &hotdog);
+                update_field(&mut display_struct.display, &sandwich);
+                update_field(&mut display_struct.display, &energy_drink);
+            }
         }
 
-        sleep(100).await; // Adjust the sleep duration as needed
+        sleep(100).await;
     }
 }
