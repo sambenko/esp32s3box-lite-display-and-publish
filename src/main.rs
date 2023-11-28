@@ -19,7 +19,7 @@ use mipidsi::{ColorOrder, Orientation, ColorInversion};
 use esp_box_ui::{
     sensor_data::{SensorData, SensorType, update_sensor_data},
     build_sensor_ui,
-    food_item::{ FoodItem, update_field },
+    food_item::{ FoodItem, update_field, draw_buy_button },
     build_inventory,
 };
 
@@ -83,9 +83,18 @@ static TEMPERATURE_DATA: Mutex<RefCell<SensorData>> = Mutex::new(RefCell::new(Se
 static HUMIDITY_DATA: Mutex<RefCell<SensorData>> = Mutex::new(RefCell::new(SensorData { sensor_type: SensorType::Humidity, pos_x: 120, value: 0.0 }));
 static PRESSURE_DATA: Mutex<RefCell<SensorData>> = Mutex::new(RefCell::new(SensorData {sensor_type: SensorType::Pressure, pos_x: 205, value: 0.0 }));
 
-static HOTDOG: Mutex<RefCell<FoodItem>> = Mutex::new(RefCell::new(FoodItem { name: "Hotdog", pos_y: 17, amount: 10, price: 2.50 }));
-static SANDWICH: Mutex<RefCell<FoodItem>> = Mutex::new(RefCell::new(FoodItem { name: "Sandwich", pos_y: 87, amount: 9, price: 3.50 }));
-static ENERGY_DRINK: Mutex<RefCell<FoodItem>> = Mutex::new(RefCell::new(FoodItem { name: "Energy Drink", pos_y: 157, amount: 11, price: 2.00 }));
+static HOTDOG: Mutex<RefCell<FoodItem>> = Mutex::new(RefCell::new(FoodItem { name: "Hotdog", pos_y: 17, amount: 10, price: 2.50, highlighted: true, purchased: false }));
+static SANDWICH: Mutex<RefCell<FoodItem>> = Mutex::new(RefCell::new(FoodItem { name: "Sandwich", pos_y: 87, amount: 9, price: 3.50, highlighted: false, purchased: false }));
+static ENERGY_DRINK: Mutex<RefCell<FoodItem>> = Mutex::new(RefCell::new(FoodItem { name: "Energy Drink", pos_y: 157, amount: 11, price: 2.00, highlighted: false, purchased: false }));
+
+enum Selection {
+    Hotdog,
+    Sandwich,
+    EnergyDrink,
+}
+
+static CURRENT_SELECTION: Mutex<RefCell<Selection>> = Mutex::new(RefCell::new(Selection::Hotdog));
+
 
 #[main]
 async fn main(spawner: Spawner) -> ! {
@@ -567,6 +576,97 @@ async fn button_handling_task(mut adc1: ADC<'static, ADC1>, mut pin: adc::AdcPin
                 update_field(&mut display_struct.display, &sandwich);
                 update_field(&mut display_struct.display, &energy_drink);
             }
+        }
+
+        if (MIDDLE_BUTTON_RANGE.0..=MIDDLE_BUTTON_RANGE.1).contains(&pin_mv) {
+            critical_section::with(|cs| {
+                let mut current_selection = CURRENT_SELECTION.borrow(cs).borrow_mut();
+                let mut hotdog = HOTDOG.borrow(cs).borrow_mut();
+                let mut sandwich = SANDWICH.borrow(cs).borrow_mut();
+                let mut energy_drink = ENERGY_DRINK.borrow(cs).borrow_mut();
+
+                match *current_selection {
+                    Selection::Hotdog => {
+                        hotdog.highlighted = false;
+                        sandwich.highlighted = true;
+                        energy_drink.highlighted = false;
+                        *current_selection = Selection::Sandwich;
+                        println!("Sandwich selected");
+                    },
+                    Selection::Sandwich => {
+                        hotdog.highlighted = false;
+                        sandwich.highlighted = false;
+                        energy_drink.highlighted = true;
+                        *current_selection = Selection::EnergyDrink;
+                        println!("Energy Drink selected");
+                    },
+                    Selection::EnergyDrink => {
+                        energy_drink.highlighted = false;
+                        hotdog.highlighted = true;
+                        sandwich.highlighted = false;
+                        *current_selection = Selection::Hotdog;
+                        println!("Hotdog selected");
+                    },
+                }
+                build_inventory(&mut display_struct.display, &hotdog, &sandwich, &energy_drink);
+                update_field(&mut display_struct.display, &hotdog);
+                update_field(&mut display_struct.display, &sandwich);
+                update_field(&mut display_struct.display, &energy_drink);
+            });
+        }
+
+        if (RIGHT_BUTTON_RANGE.0..=RIGHT_BUTTON_RANGE.1).contains(&pin_mv) {
+            critical_section::with(|cs| {
+                let current_selection = CURRENT_SELECTION.borrow(cs).borrow();
+                match *current_selection {
+                    Selection::Hotdog => {
+                        let mut hotdog = HOTDOG.borrow(cs).borrow_mut();
+                        if hotdog.amount > 0 {
+                            hotdog.amount -= 1;
+                            hotdog.purchased = true;
+                            println!("Bought one Hotdog!");
+                            draw_buy_button(&mut display_struct.display, &hotdog);
+                            sleep(1000);
+                            hotdog.purchased = false;
+                        } else {
+                            println!("Hotdog is out of stock!");
+                        }
+                    },
+                    Selection::Sandwich => {
+                        let mut sandwich = SANDWICH.borrow(cs).borrow_mut();
+                        if sandwich.amount > 0 {
+                            sandwich.amount -= 1;
+                            sandwich.purchased = true;
+                            println!("Bought one Sandwich!");
+                            draw_buy_button(&mut display_struct.display, &sandwich);
+                            sleep(1000);
+                            sandwich.purchased = false;
+                        } else {
+                            println!("Sandwich is out of stock!");
+                        }
+                    },
+                    Selection::EnergyDrink => {
+                        let mut energy_drink = ENERGY_DRINK.borrow(cs).borrow_mut();
+                        if energy_drink.amount > 0 {
+                            energy_drink.amount -= 1;
+                            energy_drink.purchased = true;
+                            println!("Bought one Energy Drink!");
+                            draw_buy_button(&mut display_struct.display, &energy_drink);
+                            sleep(1000);
+                            energy_drink.purchased = false;
+                        } else {
+                            println!("Energy Drink is out of stock!");
+                        }
+                    },
+                }
+                let hotdog = HOTDOG.borrow(cs).borrow().clone();
+                let sandwich = SANDWICH.borrow(cs).borrow().clone();
+                let energy_drink = ENERGY_DRINK.borrow(cs).borrow().clone();
+                build_inventory(&mut display_struct.display, &hotdog, &sandwich, &energy_drink);
+                update_field(&mut display_struct.display, &hotdog);
+                update_field(&mut display_struct.display, &sandwich);
+                update_field(&mut display_struct.display, &energy_drink);
+            }); 
         }
 
         sleep(100).await;
