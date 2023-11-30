@@ -429,9 +429,9 @@ checksum = "edd0f118536f44f5ccd48bcb8b111bdc3de888b58c74639dfb034a357d0f206d"
 
 [[package]]
 name = "embedded-io-async"
-version = "0.6.0"
+version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "de03527d6fb488b2d7c7a4dc81dfb6a657efe264256bfc70bb899746821666b1"
+checksum = "3ff09972d4073aa8c299395be75161d582e7629cd663171d62af73c8d50dba3f"
 dependencies = [
  "embedded-io",
 ]
@@ -585,7 +585,7 @@ dependencies = [
 [[package]]
 name = "esp-mbedtls"
 version = "0.1.0"
-source = "git+https://github.com/esp-rs/esp-mbedtls.git#fcc50ea3127373480ae268b0d779126a84e89ffa"
+source = "git+https://github.com/esp-rs/esp-mbedtls.git#749a0cc8cd4f65d198e9f3e6e78aa485f5f8435c"
 dependencies = [
  "embedded-io",
  "embedded-io-async",
@@ -597,7 +597,7 @@ dependencies = [
 [[package]]
 name = "esp-mbedtls-sys"
 version = "0.1.0"
-source = "git+https://github.com/esp-rs/esp-mbedtls.git#fcc50ea3127373480ae268b0d779126a84e89ffa"
+source = "git+https://github.com/esp-rs/esp-mbedtls.git#749a0cc8cd4f65d198e9f3e6e78aa485f5f8435c"
 dependencies = [
  "anyhow",
 ]
@@ -636,7 +636,7 @@ dependencies = [
 [[package]]
 name = "esp-wifi"
 version = "0.1.1"
-source = "git+https://github.com/esp-rs/esp-wifi#0c141a915dcb34f63fcc62211f3da95a8c17200d"
+source = "git+https://github.com/esp-rs/esp-wifi#6639863802f4623137a1f087634b8c5e08a4d0ea"
 dependencies = [
  "atomic-polyfill 1.0.3",
  "atomic_enum",
@@ -670,7 +670,7 @@ dependencies = [
 [[package]]
 name = "esp-wifi-sys"
 version = "0.1.0"
-source = "git+https://github.com/esp-rs/esp-wifi#0c141a915dcb34f63fcc62211f3da95a8c17200d"
+source = "git+https://github.com/esp-rs/esp-wifi#6639863802f4623137a1f087634b8c5e08a4d0ea"
 dependencies = [
  "anyhow",
 ]
@@ -825,6 +825,7 @@ dependencies = [
  "nb 1.1.0",
  "rust-mqtt",
  "static_cell",
+ "toml-cfg",
 ]
 
 [[package]]
