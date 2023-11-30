@@ -74,8 +74,8 @@ use esp_println::println;
 const SSID: &str = env!("SSID");
 const PASSWORD: &str = env!("PASSWORD");
 const CERT: &'static str = concat!(include_str!("../secrets/AmazonRootCA1.pem"), "\0");
-const CLIENT_CERT: &'static str = concat!(include_str!("../secrets/VendingMachine.pem.crt"), "\0");
-const PRIVATE_KEY: &'static str = concat!(include_str!("../secrets/VendingMachine-private.pem.key"), "\0");
+const CLIENT_CERT: &'static str = concat!(include_str!("../secrets/VendingMachine2.pem.crt"), "\0");
+const PRIVATE_KEY: &'static str = concat!(include_str!("../secrets/VendingMachine2-private.pem.key"), "\0");
 const ENDPOINT: &'static str = include_str!("../secrets/endpoint.txt");
 const CLIENT_ID: &'static str = include_str!("../secrets/client_id.txt");
 
@@ -255,7 +255,7 @@ async fn main(spawner: Spawner) -> ! {
 
         let mut socket = TcpSocket::new(&stack, &mut rx_buffer, &mut tx_buffer);
 
-        socket.set_timeout(Some(embassy_time::Duration::from_secs(31)));
+        socket.set_timeout(Some(embassy_time::Duration::from_secs(60)));
 
         let address = match stack
             .dns_query(ENDPOINT, DnsQueryType::A)
@@ -388,7 +388,7 @@ async fn main(spawner: Spawner) -> ! {
 
             match client
                 .send_message(
-                    "Temperature",
+                    "espboxlite/Temperature",
                     temperature_string.as_bytes(),
                     rust_mqtt::packet::v5::publish_packet::QualityOfService::QoS1,
                     true,
@@ -410,7 +410,7 @@ async fn main(spawner: Spawner) -> ! {
 
             match client
                 .send_message(
-                    "Pressure",
+                    "espboxlite/Pressure",
                     pressure_string.as_bytes(),
                     rust_mqtt::packet::v5::publish_packet::QualityOfService::QoS1,
                     true,
@@ -432,7 +432,7 @@ async fn main(spawner: Spawner) -> ! {
 
             match client
                 .send_message(
-                    "Humidity",
+                    "espboxlite/Humidity",
                     humidity_string.as_bytes(),
                     rust_mqtt::packet::v5::publish_packet::QualityOfService::QoS1,
                     true,
@@ -454,7 +454,7 @@ async fn main(spawner: Spawner) -> ! {
 
             match client
                 .send_message(
-                    "Gas",
+                    "espboxlite/Gas",
                     gas_string.as_bytes(),
                     rust_mqtt::packet::v5::publish_packet::QualityOfService::QoS1,
                     true,
@@ -474,7 +474,7 @@ async fn main(spawner: Spawner) -> ! {
                 },
             }
 
-            sleep(30000).await;
+            sleep(59000).await;
         }
     }
 }
