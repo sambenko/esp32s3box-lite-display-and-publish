@@ -205,9 +205,9 @@ async fn main(spawner: Spawner) -> ! {
     let pin = adc1_config.enable_pin_with_cal::<_, AdcCal>(io.pins.gpio1.into_analog(), atten);
 
     let adc1 = ADC::<ADC1>::adc(analog.adc1, adc1_config).unwrap();
-
-    spawner.spawn(button_handling_task(adc1, pin, display_struct)).ok();
     
+    spawner.spawn(button_handling_task(adc1, pin, display_struct)).ok();
+
     let i2c = I2C::new(
         peripherals.I2C0,
         io.pins.gpio41,
@@ -313,7 +313,6 @@ async fn main(spawner: Spawner) -> ! {
         config.add_max_subscribe_qos(rust_mqtt::packet::v5::publish_packet::QualityOfService::QoS1);
         config.add_client_id(CLIENT_ID);
         config.max_packet_size = 149504;
-        println!("{:?}", config.keep_alive);
         let mut recv_buffer = [0; 4096];
         let mut write_buffer = [0; 4096];
 
@@ -334,8 +333,10 @@ async fn main(spawner: Spawner) -> ! {
             },
         }
 
+
         //initialize BME680
         let mut bme = Bme680::init(i2c, &mut delay, I2CAddress::Primary).expect("Failed to initialize Bme680");
+        println!("I got here");
         let settings = SettingsBuilder::new()
             .with_humidity_oversampling(OversamplingSetting::OS2x)
             .with_pressure_oversampling(OversamplingSetting::OS4x)
@@ -366,6 +367,10 @@ async fn main(spawner: Spawner) -> ! {
                 PRESSURE_DATA.borrow(cs).borrow_mut().value = pres;
             });
 
+            let hotdog_amount = critical_section::with(|cs| HOTDOG.borrow(cs).borrow().amount);
+            let sandwich_amount = critical_section::with(|cs| SANDWICH.borrow(cs).borrow().amount);
+            let energy_drink_amount = critical_section::with(|cs| ENERGY_DRINK.borrow(cs).borrow().amount);
+
             println!("|========================|");
             println!("| Temperature {:.2}°C    |", temp);
             println!("| Humidity {:.2}%        |", hum);
@@ -386,9 +391,18 @@ async fn main(spawner: Spawner) -> ! {
             let mut gas_string: String<32> = String::new();
             write!(gas_string, "{:.2}", gas).expect("write! failed!");
 
+            let mut hotdog_string: String<32> = String::new();
+            write!(hotdog_string, "{}", hotdog_amount).expect("write! failed!");
+
+            let mut sandwich_string: String<32> = String::new();
+            write!(sandwich_string, "{}", sandwich_amount).expect("write! failed!");
+
+            let mut energy_drink_string: String<32> = String::new();
+            write!(energy_drink_string, "{}", energy_drink_amount).expect("write! failed!");
+
             match client
                 .send_message(
-                    "espboxlite/Temperature",
+                    "espboxlite/sensor/Temperature",
                     temperature_string.as_bytes(),
                     rust_mqtt::packet::v5::publish_packet::QualityOfService::QoS1,
                     true,
@@ -410,7 +424,7 @@ async fn main(spawner: Spawner) -> ! {
 
             match client
                 .send_message(
-                    "espboxlite/Pressure",
+                    "espboxlite/sensor/Pressure",
                     pressure_string.as_bytes(),
                     rust_mqtt::packet::v5::publish_packet::QualityOfService::QoS1,
                     true,
@@ -432,7 +446,7 @@ async fn main(spawner: Spawner) -> ! {
 
             match client
                 .send_message(
-                    "espboxlite/Humidity",
+                    "espboxlite/sensor/Humidity",
                     humidity_string.as_bytes(),
                     rust_mqtt::packet::v5::publish_packet::QualityOfService::QoS1,
                     true,
@@ -454,8 +468,74 @@ async fn main(spawner: Spawner) -> ! {
 
             match client
                 .send_message(
-                    "espboxlite/Gas",
+                    "espboxlite/sensor/Gas",
                     gas_string.as_bytes(),
+                    rust_mqtt::packet::v5::publish_packet::QualityOfService::QoS1,
+                    true,
+                )
+                .await
+            {
+                Ok(()) => {}
+                Err(mqtt_error) => match mqtt_error {
+                    ReasonCode::NetworkError => {
+                        println!("MQTT Network Error");
+                        continue;
+                    }
+                    _ => {
+                        println!("Other MQTT Error: {:?}", mqtt_error);
+                        continue;
+                    }
+                },
+            }
+
+            match client
+                .send_message(
+                    "espboxlite/inventory/Hotdog",
+                    hotdog_string.as_bytes(),
+                    rust_mqtt::packet::v5::publish_packet::QualityOfService::QoS1,
+                    true,
+                )
+                .await
+            {
+                Ok(()) => {}
+                Err(mqtt_error) => match mqtt_error {
+                    ReasonCode::NetworkError => {
+                        println!("MQTT Network Error");
+                        continue;
+                    }
+                    _ => {
+                        println!("Other MQTT Error: {:?}", mqtt_error);
+                        continue;
+                    }
+                },
+            }
+
+            match client
+                .send_message(
+                    "espboxlite/inventory/Sandwich",
+                    sandwich_string.as_bytes(),
+                    rust_mqtt::packet::v5::publish_packet::QualityOfService::QoS1,
+                    true,
+                )
+                .await
+            {
+                Ok(()) => {}
+                Err(mqtt_error) => match mqtt_error {
+                    ReasonCode::NetworkError => {
+                        println!("MQTT Network Error");
+                        continue;
+                    }
+                    _ => {
+                        println!("Other MQTT Error: {:?}", mqtt_error);
+                        continue;
+                    }
+                },
+            }
+
+            match client
+                .send_message(
+                    "espboxlite/inventory/EnergyDrink",
+                    energy_drink_string.as_bytes(),
                     rust_mqtt::packet::v5::publish_packet::QualityOfService::QoS1,
                     true,
                 )
@@ -542,7 +622,13 @@ const MIDDLE_BUTTON_RANGE: (u16, u16) = (2130, 2170); // Range for middle button
 const RIGHT_BUTTON_RANGE: (u16, u16) = (705, 745); // Range for right-most button
 
 #[embassy_executor::task]
-async fn button_handling_task(mut adc1: ADC<'static, ADC1>, mut pin: adc::AdcPin<hal::gpio::GpioPin<hal::gpio::Analog, 1>, ADC1, adc::AdcCalCurve<ADC1>>,  mut display_struct: EmbassyTaskDisplay<'static>) {
+async fn button_handling_task
+(
+    mut adc1: ADC<'static, ADC1>, 
+    mut pin: adc::AdcPin<hal::gpio::GpioPin<hal::gpio::Analog, 1>, ADC1, adc::AdcCalCurve<ADC1>>,
+    mut display_struct: EmbassyTaskDisplay<'static>,
+) {
+    
     let mut is_left_button_pressed = false;
 
     loop {
@@ -624,6 +710,8 @@ async fn button_handling_task(mut adc1: ADC<'static, ADC1>, mut pin: adc::AdcPin
                         if hotdog.amount > 0 {
                             hotdog.amount -= 1;
                             hotdog.purchased = true;
+                            let mut hotdog_amount: String<32> = String::new();
+                            write!(hotdog_amount, "{}", hotdog.amount).expect("write! failed!");
                             println!("Bought one Hotdog!");
                             draw_buy_button(&mut display_struct.display, &hotdog);
                             sleep(1000);
