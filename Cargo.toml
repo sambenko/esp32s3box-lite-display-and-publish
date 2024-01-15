@@ -10,8 +10,8 @@ hal = { package = "esp32s3-hal", version = "0.13.0", features = ["embassy", "asy
 esp-wifi = { version = "0.1.1", features = ["esp32s3", "async", "embassy-net", "wifi", "ipv6", "phy-enable-usb"] }
 nb = "1.0.0"
 heapless = "0.8.0"
-esp-backtrace = { version = "0.9.0", features = ["esp32s3", "panic-handler", "exception-handler", "print-uart"] }
-esp-println       = { version = "0.7.0", features = ["esp32s3"] }
+esp-backtrace = { version = "0.10.0", features = ["esp32s3", "panic-handler", "exception-handler", "print-uart"] }
+esp-println       = { version = "0.8.0", features = ["esp32s3"] }
 embedded-svc = { version = "0.26.4", default-features = false}
 
 embassy-net = { version = "0.2.1", features = ["nightly", "tcp", "udp", "dhcpv4", "medium-ethernet", "proto-ipv6", "dns"] }
