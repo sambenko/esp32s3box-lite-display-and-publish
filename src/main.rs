@@ -109,11 +109,10 @@ async fn main(spawner: Spawner) -> ! {
     )
     .timer0;
 
-    let timer0 = TimerGroup::new(
+    let timer_group0 = TimerGroup::new(
         peripherals.TIMG0,
         &clocks,
-    )
-    .timer0;
+    );
 
     let init = initialize(
         EspWifiInitFor::Wifi,
@@ -132,28 +131,30 @@ async fn main(spawner: Spawner) -> ! {
 
     embassy::init(
         &clocks,
-        timer0,
+        timer_group0,
     );
 
     let mut delay = Delay::new(&clocks);
     
     let sclk = io.pins.gpio7;
     let mosi = io.pins.gpio6;
-    // let miso = io.pins.gpio19;
+    let miso = io.pins.gpio19;
     let cs = io.pins.gpio5;
 
     let dc = io.pins.gpio4.into_push_pull_output();
     let mut backlight = io.pins.gpio45.into_push_pull_output();
     let reset = io.pins.gpio48.into_push_pull_output();
 
-    let spi = Spi::new_no_miso(
+    let spi = Spi::new(
         peripherals.SPI2,
-        sclk,
-        mosi,
-        cs,
         40u32.MHz(),
         SpiMode::Mode0,
         &clocks,
+    ).with_pins(
+        Some(sclk),
+        Some(mosi),
+        Some(miso),
+        Some(cs),
     );
 
     let di = SPIInterfaceNoCS::new(spi, dc);
