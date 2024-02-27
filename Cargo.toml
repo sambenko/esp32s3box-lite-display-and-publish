@@ -7,14 +7,9 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 hal = { package = "esp32s3-hal", version = "0.15.0", features = ["embassy", "async", "embassy-time-timg0", "rt", "embassy-executor-thread"] }
-esp-wifi = { version = "0.3.0", features = ["esp32s3", "async", "embassy-net", "wifi", "ipv6", "phy-enable-usb"] }
-nb = "1.0.0"
 heapless = "0.8.0"
 esp-backtrace = { version = "0.10.0", features = ["esp32s3", "panic-handler", "exception-handler", "print-uart"] }
 esp-println       = { version = "0.9.0", features = ["esp32s3"] }
-embedded-svc = { version = "0.27.0", default-features = false}
-
-embassy-net = { version = "0.4.0", features = ["tcp", "udp", "dhcpv4", "medium-ethernet", "proto-ipv6", "dns"] }
 embassy-executor  = { version = "0.5.0", package = "embassy-executor", features = ["integrated-timers", "task-arena-size-65536"] }
 embassy-futures = "0.1.0"
 embassy-time = "0.3.0"
@@ -23,8 +18,6 @@ embedded-io-async = "0.6.0"
 
 static_cell = { version = "2.0.0", features = ["nightly"] }
 
-rust-mqtt = { version = "0.3.0", default-features = false, features = ["tls"]}
-esp-mbedtls = { git = "https://github.com/esp-rs/esp-mbedtls.git", package = "esp-mbedtls", features = ["esp32s3", "async"]}
 
 bme680 = "0.6.0"
 

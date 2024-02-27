@@ -6,7 +6,6 @@ ESP_LOGLEVEL="DEBUG"
 [build]
 rustflags = [
   "-C", "link-arg=-Tlinkall.x",
-  "-C", "link-arg=-Trom_functions.x",
   "-C", "link-arg=-nostartfiles",
 ]
 
